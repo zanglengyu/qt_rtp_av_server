@@ -11,7 +11,7 @@ VideoAudioMux::VideoAudioMux()
     : av_format_context_(nullptr), av_code_context_(nullptr),
       video_stream_(nullptr), audio_stream_(nullptr) {
 
-  //  拉取摄像头画面编码成MP4格式流程
+  //  拉取摄像头与麦克风画面编码成MP4格式流程
   //  通过ffmpeg或者Qt，拉取取到摄像头画面 用ffmpeg编码
   //  ffmpeg编码主要分为一下几步;
 
@@ -24,26 +24,30 @@ VideoAudioMux::VideoAudioMux()
   //  初始化ffmgpeg封包管理器，AVFormatContext 获取编码格式 AVoutputFormat
   //  打开文件; 添加视频流 创建编码器管理器，即AVCodecContext 设置相关参数;
   //  根据编码器类型获取编码器 AVCodec 打开编码器并设置相关参数;
-  setvbuf(stdout, NULL, _IONBF, 0);
+  // setvbuf(stdout, NULL, _IONBF, 0);
 
   av_log_set_level(AV_LOG_DEBUG);
   av_log_set_callback(av_log_default_callback);
 
   avdevice_register_all();
+  avformat_network_init();
+
   std::string out_file = "tests11.mp4";
-  const AVOutputFormat *avoutput_fromat =
-      av_guess_format(NULL, out_file.c_str(), NULL);
-  av_format_context_ = avformat_alloc_context();
-  av_format_context_->oformat = avoutput_fromat;
-  if (avio_open(&av_format_context_->pb, out_file.c_str(),
-                AVIO_FLAG_READ_WRITE) < 0) {
-    qDebug() << "Failed to open output file" << Qt::endl;
+
+  // string out_file = "rtsp://192.168.20.115:8554/ffmpeg";
+  // string out_file = "rtmp://192.168.20.115/ffmpeg";
+  if (avformat_alloc_output_context2(&av_format_context_, NULL, "flv",
+                                     out_file.c_str()) < 0) {
+    printf("Fail: avformat_alloc_output_context2\n");
     return;
   }
-  if (!(av_format_context_->url = av_strdup(out_file.c_str()))) {
-    qDebug() << "Could not allocate url." << Qt::endl;
+
+  int r = avio_open(&av_format_context_->pb, out_file.c_str(), AVIO_FLAG_WRITE);
+  if (r < 0) {
+    qDebug() << "Failed to open output file error = " << r << Qt::endl;
     return;
   }
+
   video_stream_ = avformat_new_stream(av_format_context_, 0);
   if (!video_stream_) {
     qDebug() << "Failed to open video_stream_" << Qt::endl;
@@ -57,7 +61,7 @@ VideoAudioMux::VideoAudioMux()
   video_stream_->codecpar->width = 1280;
   video_stream_->codecpar->height = 720;
 
-  const AVCodec *tmp_codec = avcodec_find_encoder(avoutput_fromat->video_codec);
+  const AVCodec *tmp_codec = avcodec_find_encoder(AV_CODEC_ID_H264);
   av_code_context_ = avcodec_alloc_context3(tmp_codec);
   av_code_context_->codec_id = AV_CODEC_ID_H264;
   av_code_context_->codec_type = AVMEDIA_TYPE_VIDEO;
@@ -83,18 +87,19 @@ VideoAudioMux::VideoAudioMux()
     qDebug() << "av_codec_is_encoder  ! " << Qt::endl;
     return;
   }
+  avcodec_parameters_from_context(video_stream_->codecpar, av_code_context_);
 
   // 创建aac编码器和编码器上下文章，并创建音频流
-
   if (av_format_context_->oformat->audio_codec != AV_CODEC_ID_NONE) {
     audio_stream_ = avformat_new_stream(av_format_context_, 0);
     audio_stream_->time_base.den = 48000;
     audio_stream_->time_base.num = 1;
     audio_stream_->id = 1;
   }
+
   // AV_CODEC_ID_AAC
   const AVCodec *tmp_audio_codec =
-      avcodec_find_encoder(avoutput_fromat->audio_codec);
+      avcodec_find_encoder(av_format_context_->oformat->audio_codec);
 
   av_audio_code_context_ = avcodec_alloc_context3(tmp_audio_codec);
   av_audio_code_context_->channel_layout = AV_CH_LAYOUT_STEREO;
@@ -105,7 +110,7 @@ VideoAudioMux::VideoAudioMux()
 
   av_audio_code_context_->bit_rate = 96000;
   av_audio_code_context_->sample_rate = 48000;
-  av_audio_code_context_->codec_id = avoutput_fromat->audio_codec;
+  av_audio_code_context_->codec_id = av_format_context_->oformat->audio_codec;
   av_audio_code_context_->sample_fmt = AV_SAMPLE_FMT_FLTP;
   av_audio_code_context_->profile = FF_PROFILE_AAC_MAIN;
 
@@ -113,6 +118,7 @@ VideoAudioMux::VideoAudioMux()
 
   if (av_format_context_->oformat->flags & AVFMT_GLOBALHEADER) {
     av_audio_code_context_->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+    av_code_context_->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
   }
 
   int ret = avcodec_open2(av_audio_code_context_, tmp_audio_codec, NULL);
@@ -160,6 +166,7 @@ VideoAudioMux::VideoAudioMux()
   connect(timer, &QTimer::timeout, this,
           QOverload<>::of(&VideoAudioMux::timeout));
   timer->start(15000);
+  qDebug() << "start success !! " << res << Qt::endl;
 }
 
 void VideoAudioMux::init_av_mux() {}
@@ -219,6 +226,7 @@ void VideoAudioMux::start_mux() {
             }
             av_write_frame(av_format_context_, packet);
             av_packet_unref(packet);
+            qDebug() << "video data write success" << Qt::endl;
           } else {
             break;
           }
@@ -259,7 +267,9 @@ void VideoAudioMux::start_mux() {
               av_write_frame(av_format_context_, packet);
 
               av_packet_unref(packet);
+              qDebug() << "audio data write   success  " << Qt::endl;
             } else {
+
               break;
             }
           }

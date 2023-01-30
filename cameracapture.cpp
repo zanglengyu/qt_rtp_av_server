@@ -33,6 +33,7 @@ void CameraCapture::displayImage(int index, const QImage &image) {
   unique_lock<std::mutex> locker(buffer_mutex_);
   QImage *image1 = new QImage(move(image));
   video_frames_.append(image1);
+
   if (video_frames_.size() > 100) {
     QImage *pop_img = video_frames_.front();
     video_frames_.pop_front();
