@@ -122,6 +122,7 @@ Rectangle {
         running: true
         onTriggered: {
             if (camera.imageCapture.ready) {
+
                 camera.imageCapture.capture()
             }
         }
