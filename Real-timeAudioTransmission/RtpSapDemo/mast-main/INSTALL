@@ -1,0 +1,40 @@
+Installation of MAST
+====================
+Nicholas J. Humfrey <njh@aelius.com>
+
+MAST uses autoconf/automake, so should work on most POSIX systems.
+
+
+Quick Start
+-----------
+
+ ./configure
+ make
+
+
+Then as root:
+
+ make install
+
+
+Requirements
+------------
+
+MAST requires a very recent version of oRTP currently only available in CVS.
+There is a tarball of this on the MAST website for convenience.
+
+
+Most of the requirments are optional,
+configure will add features depending on the
+libraries available on your system.
+
+mast_cast requires Jack for audio capture.
+
+mast_record and mast_filecast require libsndfile.
+
+The MPEG Audio codec requires TwoLAME.
+
+
+- libsndfile <http://www.mega-nerd.com/libsndfile/[]>
+- JACK <http://www.jackaudio.org/[]>
+- TwoLAME <http://www.twolame.org/[]>

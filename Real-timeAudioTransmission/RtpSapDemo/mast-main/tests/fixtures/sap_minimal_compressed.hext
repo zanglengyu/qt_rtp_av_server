@@ -1,0 +1,10 @@
+21       # Flags (SAPv1)
+00       # Auth Len
+4f50     # Message ID hash
+.192.168.10.10  # Originating Source
+"application/sdp\0"
+
+# zlib compressed SDP payload created using:
+# echo -ne "v=0\r\n" | zlib-flate -compress | od -t x1 -An
+78 9c 2b b3 35 e0 e5 02
+00 03 fb 00 fb

@@ -1,0 +1,6 @@
+20       # Flags (SAPv1)
+00       # Auth Len
+c6d3     # Message ID hash
+.192.168.10.10  # Originating Source
+"application/sdp\0"
+"v=0\r\n"
